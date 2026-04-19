@@ -71,6 +71,55 @@ def parse_list_unsubscribe(header_value: str) -> dict[str, str | None]:
     return out
 
 
+# FALLBACK: Gmail MCP's get_thread does NOT expose the List-Unsubscribe
+# RFC 2369 header. We extract unsubscribe URLs from the email body as a
+# best-effort. ~70% of newsletters embed an explicit unsubscribe link.
+_UNSUB_URL_RE = re.compile(
+    r"https?://[^\s<>\"')]+(?:unsub|opt[_-]?out|preferences|email[_-]?settings)[^\s<>\"')]*",
+    re.IGNORECASE,
+)
+
+
+def extract_unsub_urls_from_body(body: str) -> list[str]:
+    """Scan a plaintext body for likely unsubscribe URLs.
+
+    Heuristic: URL contains one of (unsub, opt-out, preferences,
+    email-settings). Preserves original order; caller takes first.
+    """
+    if not body:
+        return []
+    seen: set[str] = set()
+    out: list[str] = []
+    for m in _UNSUB_URL_RE.finditer(body):
+        url = m.group(0).rstrip(".,;:!?)")
+        if url not in seen:
+            seen.add(url)
+            out.append(url)
+    return out
+
+
+def resolve_unsub(thread: dict) -> dict[str, str | None]:
+    """Best-effort unsub resolution using every available signal.
+
+    Priority:
+      1. thread["list_unsubscribe"] header (if the harness extracted it)
+      2. URLs scraped from thread["body"] / thread["plaintextBody"]
+      3. None — caller falls back to "use Gmail's native button"
+    """
+    header = thread.get("list_unsubscribe") or ""
+    out = parse_list_unsubscribe(header)
+    if out["mailto"] or out["https"]:
+        out["source"] = "header"
+        return out
+
+    body = thread.get("body") or thread.get("plaintextBody") or thread.get("snippet") or ""
+    urls = extract_unsub_urls_from_body(body)
+    if urls:
+        return {"mailto": None, "https": urls[0], "source": "body_scrape"}
+
+    return {"mailto": None, "https": None, "source": "none"}
+
+
 def build_unsub_draft_body(sender_display: str) -> str:
     """The body of an unsub email.
 
@@ -94,9 +143,14 @@ def process_candidate(
 
     Entry shape (documented in SCHEMA.md):
         schema_version, timestamp_iso, thread_id, sender, subject,
-        mailto_target, https_url, action, status
+        mailto_target, https_url, source, action, status
     """
-    parsed = parse_list_unsubscribe(list_unsub_header)
+    # Resolve via header if present, otherwise fall back to body scrape.
+    # Header wins when available (RFC 2369 is authoritative).
+    thread_with_header = dict(thread)
+    thread_with_header["list_unsubscribe"] = list_unsub_header
+    parsed = resolve_unsub(thread_with_header)
+
     entry = {
         "schema_version": schemalib.CURRENT_SCHEMA_VERSION,
         "timestamp_iso": _now_iso(),
@@ -105,12 +159,17 @@ def process_candidate(
         "subject": thread.get("subject", "<missing>"),
         "mailto_target": parsed["mailto"],
         "https_url": parsed["https"],
+        "source": parsed.get("source", "none"),
         "action": "none",
         "status": "flagged",
     }
 
     if not parsed["mailto"] and not parsed["https"]:
-        entry["status"] = "no_unsub_header"
+        # MCP doesn't expose List-Unsubscribe header, and body had no
+        # scrape-able URL. User's best option: click Gmail's native
+        # unsubscribe button (Gmail has the header even when MCP doesn't).
+        entry["status"] = "use_gmail_native_button"
+        entry["action"] = "manual_gmail_ui"
         return entry
 
     if parsed["mailto"] and not dry_run:
@@ -148,15 +207,40 @@ def render_report(entries: list[dict]) -> str:
 
     mailto = [e for e in entries if e.get("mailto_target")]
     https = [e for e in entries if e.get("https_url") and not e.get("mailto_target")]
-    none = [e for e in entries if not e.get("mailto_target") and not e.get("https_url")]
+    gmail_ui = [e for e in entries if e.get("action") == "manual_gmail_ui"]
+    none = [e for e in entries
+            if not e.get("mailto_target")
+            and not e.get("https_url")
+            and e.get("action") != "manual_gmail_ui"]
+
+    # Split https by source — header-derived vs body-scrape — so the
+    # user knows which are authoritative vs best-effort.
+    https_header = [e for e in https if e.get("source") == "header"]
+    https_scraped = [e for e in https if e.get("source") == "body_scrape"]
 
     out.append("## 🟣 By mechanism\n")
     out.append("| 🟣 Method | 🟣 Count | 🟣 Action |")
     out.append("| --------- | -------- | --------- |")
     out.append(f"| mailto drafts queued | {len(mailto)} | review + send via `.gmail review` |")
-    out.append(f"| https one-click URLs  | {len(https)} | batch-open in browser |")
-    out.append(f"| no unsub header       | {len(none)} | spam / block sender |")
+    out.append(f"| https (RFC 2369)     | {len(https_header)} | batch-open — authoritative |")
+    out.append(f"| https (body-scraped) | {len(https_scraped)} | batch-open — best effort |")
+    out.append(f"| Gmail native button  | {len(gmail_ui)} | open in Gmail, click \"Unsubscribe\" |")
+    out.append(f"| no mechanism found   | {len(none)} | block sender / mark spam |")
     out.append("")
+
+    if gmail_ui:
+        out.append("## 🟣 Use Gmail's native Unsubscribe button\n")
+        out.append(
+            "Gmail's MCP surface doesn't expose the RFC 2369 header, but "
+            "Gmail's **web UI** does. For these senders, open the thread "
+            "in gmail.com and click the **Unsubscribe** link next to the "
+            "sender name:\n"
+        )
+        for e in gmail_ui[:15]:
+            out.append(f"- `{e['sender'][:50]}` — thread `{e['thread_id']}`")
+        if len(gmail_ui) > 15:
+            out.append(f"- ...and {len(gmail_ui) - 15} more (see logs/unsubs.jsonl)")
+        out.append("")
 
     if https:
         out.append("## 🟣 HTTPS URLs to batch-open\n")

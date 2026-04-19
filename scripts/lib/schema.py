@@ -118,7 +118,7 @@ def validate(entry: dict[str, Any], entry_type: str) -> None:
 
     elif entry_type == "unsub":
         allowed_actions = {"none", "draft_queued", "manual_click",
-                           "manual_mailto", "dry_run"}
+                           "manual_mailto", "manual_gmail_ui", "dry_run"}
         if entry["action"] not in allowed_actions:
             raise SchemaError(f"unsub.action must be one of {allowed_actions}")
 

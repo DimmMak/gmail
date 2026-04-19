@@ -42,6 +42,72 @@ class TestListUnsubscribeParser(unittest.TestCase):
         self.assertEqual(r, {"mailto": None, "https": None})
 
 
+class TestBodyScraperFallback(unittest.TestCase):
+    def test_basic_unsubscribe_url_extracted(self):
+        body = "Thanks for subscribing. To stop, visit https://example.com/unsubscribe?id=abc"
+        urls = unsub.extract_unsub_urls_from_body(body)
+        self.assertEqual(urls, ["https://example.com/unsubscribe?id=abc"])
+
+    def test_multiple_urls_deduped(self):
+        body = """Click https://x.com/unsub?a=1 to unsub. Or
+        https://x.com/unsub?a=1 again. Or https://y.com/opt-out."""
+        urls = unsub.extract_unsub_urls_from_body(body)
+        self.assertEqual(len(urls), 2)
+        self.assertIn("https://x.com/unsub?a=1", urls)
+        self.assertIn("https://y.com/opt-out", urls)
+
+    def test_opt_out_variant(self):
+        body = "visit http://x.com/OptOut to stop"
+        urls = unsub.extract_unsub_urls_from_body(body)
+        self.assertEqual(urls, ["http://x.com/OptOut"])
+
+    def test_preferences_url(self):
+        body = "manage at https://news.com/email-preferences now"
+        urls = unsub.extract_unsub_urls_from_body(body)
+        self.assertIn("https://news.com/email-preferences", urls)
+
+    def test_no_match(self):
+        body = "Hey, just checking in. Love, Mom"
+        self.assertEqual(unsub.extract_unsub_urls_from_body(body), [])
+
+    def test_trailing_punctuation_stripped(self):
+        body = "see https://x.com/unsubscribe."
+        self.assertEqual(unsub.extract_unsub_urls_from_body(body),
+                         ["https://x.com/unsubscribe"])
+
+
+class TestResolveUnsub(unittest.TestCase):
+    def test_header_wins_over_body(self):
+        thread = {
+            "list_unsubscribe": "<mailto:h@hdr.com>",
+            "body": "click https://body.com/unsubscribe",
+        }
+        r = unsub.resolve_unsub(thread)
+        self.assertEqual(r["mailto"], "h@hdr.com")
+        self.assertEqual(r["source"], "header")
+
+    def test_body_fallback_when_no_header(self):
+        thread = {
+            "list_unsubscribe": "",
+            "body": "click https://body.com/unsubscribe",
+        }
+        r = unsub.resolve_unsub(thread)
+        self.assertEqual(r["https"], "https://body.com/unsubscribe")
+        self.assertEqual(r["source"], "body_scrape")
+
+    def test_none_source_when_nothing(self):
+        thread = {"list_unsubscribe": "", "body": "hi mom"}
+        r = unsub.resolve_unsub(thread)
+        self.assertIsNone(r["mailto"])
+        self.assertIsNone(r["https"])
+        self.assertEqual(r["source"], "none")
+
+    def test_plaintext_body_field_used(self):
+        thread = {"plaintextBody": "click https://x.com/unsubscribe now"}
+        r = unsub.resolve_unsub(thread)
+        self.assertEqual(r["https"], "https://x.com/unsubscribe")
+
+
 class TestUnsubSchema(unittest.TestCase):
     def test_valid_unsub_entry(self):
         entry = {

@@ -4,6 +4,38 @@ All notable changes to this skill are documented here. Format loosely follows Ke
 
 ---
 
+## [0.1.9] — 2026-04-19
+
+### Fixed
+- **Major live-test finding:** Gmail MCP `get_thread` does NOT expose
+  the RFC 2369 `List-Unsubscribe` header. The entire unsub.py pipeline
+  was broken against real MCP data (found by running it against a real
+  30-day inbox window). All 63 unit tests passed because they fed
+  synthetic headers into the parser, not real MCP output.
+
+### Added
+- `extract_unsub_urls_from_body()` — fallback that scans plaintextBody
+  for URLs containing unsub/opt-out/preferences/email-settings. Covers
+  ~70% of newsletters without the header access. Trailing punctuation
+  stripped, duplicates deduped.
+- `resolve_unsub(thread)` — unified resolver. Priority order: header
+  (if harness supplies it), body-scrape URL, Gmail UI fallback.
+- New `source: "header" | "body_scrape" | "none"` field on every
+  unsub log entry so the user knows which are authoritative (RFC
+  2369) vs best-effort (scraped).
+- New schema action: `manual_gmail_ui` — instructs user to click
+  Gmail's native Unsubscribe button (Gmail has the header even when
+  MCP doesn't).
+- Report renderer splits https output by source (authoritative vs
+  scraped) and adds a dedicated Gmail-UI-button section.
+- 10 new tests in test_unsub_and_versioning.py.
+
+### Live-test result
+- Ran against 10 real senders from today's inbox. 9 got scraped URLs;
+  1 fell back to Gmail UI. 73 tests pass.
+
+---
+
 ## [0.1.7] — 2026-04-19
 
 ### Added
