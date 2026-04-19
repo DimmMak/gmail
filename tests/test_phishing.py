@@ -124,6 +124,40 @@ class TestOpaqueSubdomain(unittest.TestCase):
         self.assertIsNone(s)
 
 
+class TestHomograph(unittest.TestCase):
+    def test_cyrillic_A_spoof_caught(self):
+        # Cyrillic А (U+0410) looks like ASCII A
+        sig = ph.check_homograph("\u0410mazon", "fake@amaz0n.tk")
+        self.assertIsNotNone(sig)
+        self.assertEqual(sig.name, "homograph_attack")
+
+    def test_cyrillic_P_paypal(self):
+        sig = ph.check_homograph("\u0420ayPal", "scam@paypal-fake.ru")
+        self.assertIsNotNone(sig)
+
+    def test_real_brand_with_confusable_display_but_legit_domain(self):
+        # Amazon legitimately uses 'A' but what if someone writes it weird?
+        # If the sender domain is legit, we trust it.
+        sig = ph.check_homograph("\u0410mazon", "orders@amazon.com")
+        self.assertIsNone(sig)
+
+    def test_no_confusable_no_fire(self):
+        sig = ph.check_homograph("Amazon", "fake@amazon-scam.com")
+        # Plain ASCII "Amazon" with bad domain — brand_spoof catches it,
+        # homograph doesn't need to.
+        self.assertIsNone(sig)
+
+    def test_greek_homograph(self):
+        # Greek Α (U+0391) also confusable with Latin A
+        sig = ph.check_homograph("\u0391pple", "fake@appl3.com")
+        self.assertIsNotNone(sig)
+
+    def test_fold_confusables(self):
+        self.assertEqual(ph._fold_confusables("\u0410mazon"), "Amazon")
+        self.assertEqual(ph._fold_confusables("p\u0430ypal"), "paypal")
+        self.assertEqual(ph._fold_confusables("NoConfusables"), "NoConfusables")
+
+
 class TestAnalyzeIntegration(unittest.TestCase):
     def test_obvious_phish_scores_high(self):
         report = ph.analyze(

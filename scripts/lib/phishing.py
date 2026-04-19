@@ -281,6 +281,78 @@ def check_name_mismatch(
     return None
 
 
+def _fold_confusables(text: str) -> str:
+    """Map visually-confusable unicode chars back to ASCII.
+
+    Targets the common homograph-attack confusables used in brand
+    spoofing. Fold Cyrillic A/a/e/o/p/c/y/x etc. to ASCII so a spoofed
+    'Аmazon' (Cyrillic А) normalizes to 'amazon' and matches the
+    brand-spoof detector.
+
+    This is a confusables-map approach — explicit, auditable, no
+    external dep. NOT a full Unicode TR#36/39 implementation.
+    """
+    if not text:
+        return ""
+    # Mapping: key = confusable char, value = ASCII lookalike.
+    # Sourced from the most-abused homograph set in phishing corpora.
+    confusables = {
+        # Cyrillic capital → ASCII
+        "\u0410": "A", "\u0412": "B", "\u0415": "E", "\u041a": "K",
+        "\u041c": "M", "\u041d": "H", "\u041e": "O", "\u0420": "P",
+        "\u0421": "C", "\u0422": "T", "\u0425": "X",
+        # Cyrillic lowercase → ASCII
+        "\u0430": "a", "\u0435": "e", "\u043e": "o", "\u0440": "p",
+        "\u0441": "c", "\u0443": "y", "\u0445": "x",
+        # Greek
+        "\u0391": "A", "\u0392": "B", "\u0395": "E", "\u0396": "Z",
+        "\u0397": "H", "\u0399": "I", "\u039a": "K", "\u039c": "M",
+        "\u039d": "N", "\u039f": "O", "\u03a1": "P", "\u03a4": "T",
+        "\u03a7": "X", "\u03a5": "Y",
+        # Fullwidth Latin
+        "\uff21": "A", "\uff22": "B", "\uff23": "C",
+        # Latin-1 accented (common in spoof)
+        "\u00c1": "A", "\u00c0": "A", "\u00c2": "A", "\u00e1": "a",
+        "\u00e0": "a", "\u00e2": "a",
+    }
+    return "".join(confusables.get(c, c) for c in text)
+
+
+def check_homograph(display_name: str, sender_email: str) -> Signal | None:
+    """Detect homograph-attack brand spoofs.
+
+    Fires when the display name contains a confusable character AND
+    after folding it becomes a brand we know. Pure signal; caller
+    aggregates. Score 0.6 — high but not as strong as brand_spoof
+    (which has authoritative domain evidence).
+    """
+    if not display_name:
+        return None
+    folded = _fold_confusables(display_name)
+    if folded == display_name:
+        return None  # no confusables present
+    # Does the folded form now contain a known brand?
+    folded_lower = folded.lower()
+    for brand in IMPERSONATION_TARGETS:
+        if brand in folded_lower:
+            # And does the sender domain NOT legit-match that brand?
+            domain = domain_of(sender_email)
+            sld = _registrable_sld(domain) if domain else ""
+            brand_compact = brand.replace(" ", "")
+            if sld == brand_compact:
+                return None  # legit brand with weird display styling
+            return Signal(
+                name="homograph_attack",
+                score=0.6,
+                detail=(
+                    f"display '{display_name}' uses confusable chars; folded "
+                    f"to '{folded}' matches brand '{brand}' but sender SLD "
+                    f"is '{sld}' (homograph spoof)"
+                ),
+            )
+    return None
+
+
 def check_opaque_subdomain(sender_email: str) -> Signal | None:
     """First label is a known ESP-style opaque prefix (em-*, e1-*, etc.).
 
@@ -334,6 +406,7 @@ def analyze(
 
     for check in (
         lambda: check_brand_spoof(display, email),
+        lambda: check_homograph(display, email),
         lambda: check_suspicious_tld(email),
         lambda: check_url_shorteners(body),
         lambda: check_urgency_plus_money(subject, body),
