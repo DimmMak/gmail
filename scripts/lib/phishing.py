@@ -93,8 +93,13 @@ class PhishingReport:
 
     @property
     def total_score(self) -> float:
-        """Sum of signal scores, clamped 0.0–1.0."""
-        return min(1.0, sum(s.score for s in self.signals))
+        """Sum of signal scores, clamped 0.0–1.0.
+
+        Always returns float — even when signals is empty (sum([]) = int 0
+        would otherwise leak an int into downstream consumers that type-
+        check floats).
+        """
+        return float(min(1.0, sum(s.score for s in self.signals)))
 
     @property
     def is_suspicious(self) -> bool:

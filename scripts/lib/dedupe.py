@@ -66,9 +66,15 @@ def resource_key(thread_fingerprint: dict) -> str:
 
     The commit hash / run ID at the end is stripped so failures + successes
     on the same workflow collapse together.
+
+    Defensive coercion: MCP responses may occasionally return unexpected
+    types (dicts, lists, numbers) for these fields. We stringify them so
+    `.lower()` never crashes on malformed input.
     """
-    sender = (thread_fingerprint.get("from") or "").lower()
-    subject = thread_fingerprint.get("subject") or ""
+    raw_from = thread_fingerprint.get("from")
+    sender = str(raw_from).lower() if raw_from is not None else ""
+    raw_subject = thread_fingerprint.get("subject")
+    subject = str(raw_subject) if raw_subject is not None else ""
     # Strip leading tags/emoji prefixes.
     stem = _SUBJECT_STEM_STRIP.sub("", subject).strip()
     # Strip leading status verbs so failure/success on the same resource merge.

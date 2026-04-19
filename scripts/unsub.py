@@ -80,12 +80,26 @@ _UNSUB_URL_RE = re.compile(
 )
 
 
-def extract_unsub_urls_from_body(body: str) -> list[str]:
+def extract_unsub_urls_from_body(body) -> list[str]:
     """Scan a plaintext body for likely unsubscribe URLs.
 
     Heuristic: URL contains one of (unsub, opt-out, preferences,
     email-settings). Preserves original order; caller takes first.
+
+    Defensive: MCP responses may return bytes, lists, or None for the
+    body field. We accept str or decode-able bytes; anything else
+    returns an empty list (caller gets the "no signal" outcome, not
+    a crash).
     """
+    if body is None:
+        return []
+    if isinstance(body, bytes):
+        try:
+            body = body.decode("utf-8", errors="replace")
+        except Exception:
+            return []
+    if not isinstance(body, str):
+        return []
     if not body:
         return []
     seen: set[str] = set()
@@ -112,8 +126,10 @@ def resolve_unsub(thread: dict) -> dict[str, str | None]:
         out["source"] = "header"
         return out
 
+    # Coerce body to string — extract_unsub_urls_from_body is now defensive
+    # but we still want a clean empty-list path for non-string inputs.
     body = thread.get("body") or thread.get("plaintextBody") or thread.get("snippet") or ""
-    urls = extract_unsub_urls_from_body(body)
+    urls = extract_unsub_urls_from_body(body) if body else []
     if urls:
         return {"mailto": None, "https": urls[0], "source": "body_scrape"}
 
