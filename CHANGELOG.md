@@ -4,6 +4,40 @@ All notable changes to this skill are documented here. Format loosely follows Ke
 
 ---
 
+## [0.1.1] — 2026-04-19
+
+### Added
+- `scripts/lib/dedupe.py` — two-pass dedupe for supersedable alerts. When
+  a later system-alert arrives for the same resource (sender + normalized
+  subject stem) within `dedupe_window_minutes`, earlier alerts are marked
+  `status: superseded` with a reference to the winning `thread_id`. Fixes
+  the stale-GitHub-failure-email class of bugs found in v0.1 stress test.
+- `scripts/lib/quote_verify.py` — verbatim-quote enforcement. Before a
+  draft is logged as `pending_review`, the drafter's `quoted_line` is
+  checked as a normalized substring of the email body. Failures cap
+  confidence to 1 and prefix the draft with a hallucination warning.
+- Two new `rules.json` categories: `system-alert` (flag + dedupe) and
+  `spam-suspicious` (flag, never draft).
+- Status verb stripping in `dedupe.resource_key()` so that a later
+  "Run succeeded:" alert supersedes earlier "Run failed:" alerts on the
+  same workflow.
+
+### Changed
+- `schema.py` — `_ALLOWED_STATUS` now includes `superseded`.
+- `triage.py` — two-pass pipeline: classify all, dedupe, then flush to
+  log. Keeps log append-only while producing a deduped report.
+- `draft` log entries now carry `quote_verified: bool` and
+  `quote_verification_reason: str`.
+
+### Fixed
+- GAP 3 from v0.1 stress test: stale system alerts no longer pollute the
+  flagged-for-human queue after a later success supersedes them.
+- GAP "hallucination hardening" from v0.1 stress test: drafts claiming
+  to quote the inbound email are now structurally verified, not merely
+  instructed.
+
+---
+
 ## [0.1] — 2026-04-19
 
 ### Added

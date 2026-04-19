@@ -57,7 +57,7 @@ _REQUIRED: dict[str, tuple[str, ...]] = {
     ),
 }
 
-_ALLOWED_STATUS = {"pending_review", "flagged_for_human", "skipped"}
+_ALLOWED_STATUS = {"pending_review", "flagged_for_human", "skipped", "superseded"}
 _ALLOWED_DECISION = {"approved", "edited", "rejected"}
 _ALLOWED_ACTION = {"draft", "label", "flag"}
 

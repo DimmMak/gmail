@@ -31,6 +31,8 @@ sys.path.insert(0, ROOT)
 
 from scripts.lib import log as loglib  # noqa: E402
 from scripts.lib import schema as schemalib  # noqa: E402
+from scripts.lib import dedupe as dedupelib  # noqa: E402
+from scripts.lib import quote_verify as qvlib  # noqa: E402
 from scripts.lib.gmail_client import GmailClient, GmailClientError  # noqa: E402
 
 
@@ -108,6 +110,16 @@ def triage_one(
 
     # action == 'draft'
     draft = draft_fn(thread, cat)
+
+    # FIX #2 — verbatim quote enforcement (hallucination hardening).
+    # If quoted_line does not appear in email body, draft is downgraded
+    # (confidence capped to 1, warning prefixed, verification recorded).
+    email_body = thread.get("body", "") or thread.get("snippet", "")
+    draft = qvlib.enforce_or_downgrade(draft, email_body)
+    qv = draft["quote_verification"]
+    entry["quote_verified"] = qv["ok"]
+    entry["quote_verification_reason"] = qv["reason"]
+
     body = draft.get("draft_body", "")
     entry["draft_preview"] = body[:200]
     try:
@@ -151,12 +163,28 @@ def run(argv: list[str] | None = None) -> int:
             "triage_one requires draft_fn supplied by the harness."
         )
 
+    # FIX #1 — two-pass dedupe for supersedable alerts (system-alert).
+    # Pass 1: build entries in memory without logging.
+    # Pass 2: run dedupe, then flush to disk. Keeps log append-only while
+    # still giving the human a clean triage report.
+    pending: list[dict] = []
     for thread in threads:
         if thread["thread_id"] in seen:
             continue  # I6
         entry = triage_one(
             thread, rules, rules_version, _classify_stub, _draft_stub, client,
         )
+        pending.append(entry)
+
+    # Look up the dedupe window from the system-alert rule (default 60 min).
+    sys_cat = next(
+        (c for c in rules["categories"] if c["id"] == "system-alert"),
+        None,
+    )
+    window = int((sys_cat or {}).get("dedupe_window_minutes", 60))
+    dedupelib.dedupe_alerts(pending, window_minutes=window)
+
+    for entry in pending:
         loglib.append(DRAFTS_LOG, entry, entry_type="draft")
 
     return 0
