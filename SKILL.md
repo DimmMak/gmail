@@ -1,8 +1,9 @@
 ---
 name: gmail
 domain: general
-version: 0.1
-description: Email triage with Intern/Senior/Architect review pattern
+version: 0.1.0
+description: >
+  Email triage with Intern/Senior/Architect review pattern. Intern (Claude) drafts replies via Gmail MCP; Senior (Danny) reviews and sends; Architect audits monthly. Structural no-send guarantee — the MCP surface exposes no send tool. NOT for: linkedin-outreach (LinkedIn DMs only), accuracy-tracker (prediction grading, not email), royal-rumble (stock verdicts, not inbox).
 capabilities:
   reads:
     - gmail-mcp (search_threads, get_thread, list_drafts, list_labels)
