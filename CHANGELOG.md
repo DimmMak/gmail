@@ -4,6 +4,36 @@ All notable changes to this skill are documented here. Format loosely follows Ke
 
 ---
 
+## [0.1.2] — 2026-04-19
+
+### Added
+- `scripts/lib/phishing.py` — programmatic phishing signal detection.
+  Pure functions, stdlib only. Six checks: brand_spoof, suspicious_tld,
+  url_shorteners, urgency_plus_money, name_mismatch, opaque_subdomain.
+  Returns a PhishingReport with per-signal scores (0.0-1.0 each) and a
+  clamped total_score. Caller decides policy — this module only senses.
+- `tests/test_phishing.py` — 24 tests covering parser, each check, and
+  integration. Real-inbox cases from Harbor Freight (KADE name mismatch),
+  Hard Rock AC (opaque ESP subdomain), and synthetic PayPal spoof all
+  classified correctly.
+
+### Fixed
+- Brand-spoof check was bypassed by hyphenated look-alike domains like
+  'paypal-secure.tk' — the old logic checked substring after stripping
+  hyphens. New logic compares against the REGISTRABLE SLD (handles
+  'service.paypal.com' as legit, 'paypal-secure.tk' as spoof). Added
+  best-effort two-part ccTLD handling (.co.uk, .com.au, etc.).
+- Opaque-subdomain regex over-triggered on generic prefixes — 'travel.*'
+  and 'mail' alone wrongly fired. Tightened to require a known ESP
+  prefix (em-, e\\d+, mail-, track-, trk-, click-, t\\d+) with explicit
+  separator.
+- `quote_verify` min-length lowered 6→4 chars (v0.1.2 carries forward).
+
+### Test counts
+- Total unittest cases: 47 (was 23 at v0.1).
+
+---
+
 ## [0.1.1] — 2026-04-19
 
 ### Added
