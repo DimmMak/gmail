@@ -25,7 +25,6 @@ unix_contract:
   stdin_support: true
   stdout_format: "JSONL matching SCHEMA.md"
   composable_with:
-    - linkedin-outreach
     - accuracy-tracker
     - royal-rumble
 ---

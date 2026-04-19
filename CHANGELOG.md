@@ -8,16 +8,16 @@ All notable changes to this skill are documented here. Format loosely follows Ke
 
 ### Added — closing pro-grade stress-test gap
 - `phishing.check_homograph(display, email)` — detects brand spoofs
-  using Cyrillic/Greek/fullwidth/Latin-1 confusables (e.g. `Аmazon` with
-  Cyrillic А vs legit `Amazon`). Runs BEFORE brand_spoof in the pipeline
+  using Cyrillic/Greek/fullwidth/Latin-1 confusables (e.g. `\u0410mazon` (Cyrillic A-styled "Amazon") with
+  Cyrillic A vs legit `Amazon`). Runs BEFORE brand_spoof in the pipeline
   so homograph attempts flagged even when SLD looks legit-ish.
 - `_fold_confusables(text)` — explicit mapping-based fold. Audit-friendly
   alternative to full Unicode TR#36/39 dep. Covers most-abused homograph
-  set in phishing corpora (Cyrillic А/В/Е/К/О/Р/Т/Х, Greek А/Р, etc.).
+  set in phishing corpora (Cyrillic A/B/E/K/O/P/T/X (U+0410-U+0425), Greek A/P (U+0391/U+03A1), etc.).
 - 6 new unit tests for homograph detection (79 total, was 73).
 
 ### Why it matters
-Professional-grade threat surface. `Аmazon` with Cyrillic А was a
+Professional-grade threat surface. `\u0410mazon` (Cyrillic A-styled "Amazon") with Cyrillic A was a
 documented blind spot in the v0.1.9 stress test report. Now flagged
 as a 0.6-score signal — lower than brand_spoof (0.7) because domain
 evidence is weaker, but combined with other signals (TLD, shortener)
