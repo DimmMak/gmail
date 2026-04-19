@@ -78,10 +78,23 @@ def verify(quoted_line: str, email_body: str) -> tuple[bool, str]:
     if needle in haystack:
         return True, "verbatim match"
 
-    # Try a looser match: drop leading/trailing punctuation.
-    loose = needle.strip(".,;:!?()[]\"'- ")
-    if loose and loose in haystack:
+    # Fallback 1: drop leading/trailing punctuation.
+    edge_stripped = needle.strip(".,;:!?()[]\"'- ")
+    if edge_stripped and edge_stripped in haystack:
         return True, "match after stripping edge punctuation"
+
+    # Fallback 2: punctuation drift — strip ALL punctuation from both.
+    # This catches legit quotes where the LLM dropped a comma but the
+    # content is intact ("Hello, how are you?" vs "Hello how are you").
+    # The verifier's job is detecting hallucination, not enforcing
+    # exact punctuation. Alphanumeric+whitespace match is sufficient.
+    punct_re = re.compile(r"[^\w\s]")
+    needle_alpha = punct_re.sub("", needle)
+    haystack_alpha = punct_re.sub("", haystack)
+    needle_alpha = _WS.sub(" ", needle_alpha).strip()
+    haystack_alpha = _WS.sub(" ", haystack_alpha).strip()
+    if len(needle_alpha) >= 4 and needle_alpha in haystack_alpha:
+        return True, "match after stripping all punctuation (punctuation drift)"
 
     return False, "quoted_line not found in email_body (hallucination suspected)"
 
