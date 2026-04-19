@@ -63,9 +63,11 @@ def verify(quoted_line: str, email_body: str) -> tuple[bool, str]:
     if stripped == "<none>":
         return True, "sentinel <none> accepted (drafter declined to quote)"
 
-    if len(stripped) < 6:
-        # Too short to be meaningful — likely hallucinated filler.
-        return False, f"quoted_line too short ({len(stripped)} chars); minimum 6"
+    if len(stripped) < 4:
+        # Too short to be meaningful — likely hallucinated filler
+        # ("yes", "ok", "hi"). 4-char floor admits legit short words
+        # ("café", "help", "sell") while still catching filler.
+        return False, f"quoted_line too short ({len(stripped)} chars); minimum 4"
 
     needle = _normalize(stripped)
     haystack = _normalize(email_body or "")
