@@ -1,0 +1,46 @@
+{
+  "schema_version": "0.1",
+  "categories": [
+    {
+      "id": "recruiter",
+      "match": "Cold recruiter outreach, job pitches, staffing agencies. Signals: 'role', 'opportunity', 'reach out about a position', 'hiring', compensation bands in body.",
+      "action": "draft",
+      "min_confidence": 3,
+      "draft_template_hint": "Polite decline unless the email explicitly mentions total comp >= $150k or a specific role that matches Danny's data-analyst trajectory. Keep under 80 words. Thank them, state current focus, leave door open."
+    },
+    {
+      "id": "linkedin-accept",
+      "match": "LinkedIn connection accepted notifications and first-touch messages from a new connection. Sender is usually 'LinkedIn' or the new connection directly.",
+      "action": "draft",
+      "min_confidence": 4,
+      "draft_template_hint": "Warm intro. Acknowledge the connect by name, one line on what Danny is building (systems-thinking, Blue Hill Capital + self-taught data analysis), point to github.com/DimmMak/the-overhaul, offer a free 30-min call. Max 100 words."
+    },
+    {
+      "id": "newsletter",
+      "match": "Substack, Beehiiv, Medium digests, company newsletters, product updates, Revue-style blasts. List-unsubscribe header usually present.",
+      "action": "label",
+      "min_confidence": 3,
+      "label": "Newsletters"
+    },
+    {
+      "id": "receipt",
+      "match": "Purchase confirmations, order receipts, payment notifications (Stripe, Shopify, Amazon, Apple). Sender contains 'no-reply' or 'receipts'.",
+      "action": "label",
+      "min_confidence": 4,
+      "label": "Receipts"
+    },
+    {
+      "id": "personal",
+      "match": "Personal correspondence from family, close friends, or first-name-basis contacts. Conversational tone, no transactional signals.",
+      "action": "flag",
+      "min_confidence": 3
+    },
+    {
+      "id": "consulting-inbound",
+      "match": "Inbound asking about Danny's time, expertise, or offering a paid engagement. Signals: 'consulting', 'work with you', 'hire you', 'project', 'rate'.",
+      "action": "draft",
+      "min_confidence": 3,
+      "draft_template_hint": "High priority. Lead with genuine interest in their problem. Offer a free 30-min discovery call with calendar link placeholder {{CAL_LINK}}. Mention github.com/DimmMak/the-overhaul if relevant. Max 120 words."
+    }
+  ]
+}
