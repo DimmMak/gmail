@@ -33,6 +33,7 @@ from scripts.lib import log as loglib  # noqa: E402
 from scripts.lib import schema as schemalib  # noqa: E402
 from scripts.lib import dedupe as dedupelib  # noqa: E402
 from scripts.lib import quote_verify as qvlib  # noqa: E402
+from scripts.lib import phishing as phlib  # noqa: E402
 from scripts.lib.gmail_client import GmailClient, GmailClientError  # noqa: E402
 
 
@@ -75,6 +76,14 @@ def triage_one(
 
     cat = next((c for c in rules["categories"] if c["id"] == category_id), None)
 
+    # Run phishing signals on every thread — runs BEFORE category gating
+    # so spam-suspicious gets flagged even if the classifier wanted to draft.
+    ph_report = phlib.analyze(
+        sender=thread.get("from", ""),
+        subject=thread.get("subject", ""),
+        body=thread.get("body", "") or thread.get("snippet", ""),
+    )
+
     entry: dict = {
         "schema_version": schemalib.CURRENT_SCHEMA_VERSION,
         "timestamp_iso": _now_iso(),
@@ -89,7 +98,15 @@ def triage_one(
         "draft_preview": "",
         "confidence": max(1, min(5, confidence)),
         "status": "skipped",
+        "phishing_report": ph_report.to_dict(),
     }
+
+    # Phishing override: if total_score >= 0.5, force flag_for_human
+    # regardless of what the classifier decided. Hard safety gate.
+    if ph_report.is_suspicious:
+        entry["status"] = "flagged_for_human"
+        entry["flag_reason"] = "phishing_signals"
+        return entry
 
     if cat is None:
         return entry

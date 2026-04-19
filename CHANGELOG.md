@@ -4,6 +4,44 @@ All notable changes to this skill are documented here. Format loosely follows Ke
 
 ---
 
+## [0.1.5] — 2026-04-19
+
+### Added
+- `.gmail status` subcommand (`scripts/status.py`) — 7 health checks:
+  symlink, rules.json validity, log integrity, module imports, I5
+  no-send invariant, schema version parity, last triage age. Exits
+  non-zero on any failure for CI integration.
+
+### Fulfilled
+- SKILL.md advertised `status` subcommand is now real.
+
+---
+
+## [0.1.4] — 2026-04-19
+
+### Added
+- `scripts/stats.py` — observability layer. Reads all JSONL logs,
+  produces markdown report: triage volume, category breakdown, review
+  decisions, phishing signal hit rates, log health (with rotation
+  warnings at 5k/10k lines). `--json` mode for machine-readable output.
+- `tests/test_stats_status.py` — smoke tests for stats + status CLIs.
+
+---
+
+## [0.1.3] — 2026-04-19
+
+### Added
+- `phishing.analyze()` wired into `triage.triage_one()`. Every thread
+  now carries a `phishing_report` field in its draft log entry.
+- Hard safety gate: `total_score >= 0.5` forces `status=flagged_for_human`
+  regardless of classifier intent, with `flag_reason: "phishing_signals"`.
+
+### Changed
+- `schema.py` now accepts optional `phishing_report` in draft entries
+  (backward-compat: older entries without the field still validate).
+
+---
+
 ## [0.1.2] — 2026-04-19
 
 ### Added

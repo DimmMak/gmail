@@ -88,6 +88,11 @@ def validate(entry: dict[str, Any], entry_type: str) -> None:
             raise SchemaError(f"draft.status must be one of {_ALLOWED_STATUS}")
         if not isinstance(entry["draft_preview"], str) or len(entry["draft_preview"]) > 200:
             raise SchemaError("draft.draft_preview must be str <= 200 chars")
+        # phishing_report is optional (backward-compat with v0.1.0 / v0.1.1 / v0.1.2 entries)
+        if "phishing_report" in entry:
+            pr = entry["phishing_report"]
+            if not isinstance(pr, dict) or "total_score" not in pr:
+                raise SchemaError("draft.phishing_report must be a dict with total_score")
 
     elif entry_type == "sent":
         if entry["decision"] not in _ALLOWED_DECISION:
