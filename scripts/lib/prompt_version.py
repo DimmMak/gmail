@@ -41,9 +41,12 @@ def read_version(prompt_path: str) -> dict[str, str | None]:
 
     try:
         # Only look at first 500 bytes — header must be at top.
-        with open(prompt_path, "r", encoding="utf-8") as f:
+        # errors="replace" tolerates non-UTF-8 input without crashing
+        # (e.g. a file corrupted or accidentally binary). The header
+        # must still be valid UTF-8 to match; replacement chars won't.
+        with open(prompt_path, "r", encoding="utf-8", errors="replace") as f:
             head = f.read(500)
-    except OSError:
+    except (OSError, IsADirectoryError):
         return {"prompt_version": None, "last_changed": None}
 
     m = _HEADER_RE.search(head)
