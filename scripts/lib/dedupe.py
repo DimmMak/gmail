@@ -57,7 +57,7 @@ def _parse_iso(ts: str) -> datetime:
     return datetime.fromisoformat(ts).astimezone(timezone.utc)
 
 
-def resource_key(thread_fingerprint: dict) -> str:
+def resource_key(thread_fingerprint) -> str:
     """Derive a stable key for what this alert is ABOUT.
 
     Example:
@@ -67,10 +67,14 @@ def resource_key(thread_fingerprint: dict) -> str:
     The commit hash / run ID at the end is stripped so failures + successes
     on the same workflow collapse together.
 
-    Defensive coercion: MCP responses may occasionally return unexpected
-    types (dicts, lists, numbers) for these fields. We stringify them so
-    `.lower()` never crashes on malformed input.
+    Defensive coercion (round 6/7 hardening):
+    - If fingerprint is not a dict (None, str, list), return empty key —
+      caller treats as un-dedupable.
+    - If any field is None or non-string, stringify defensively so
+      `.lower()` never crashes on malformed MCP input.
     """
+    if not isinstance(thread_fingerprint, dict):
+        return "::"
     raw_from = thread_fingerprint.get("from")
     sender = str(raw_from).lower() if raw_from is not None else ""
     raw_subject = thread_fingerprint.get("subject")
