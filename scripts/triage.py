@@ -34,11 +34,22 @@ from scripts.lib import schema as schemalib  # noqa: E402
 from scripts.lib import dedupe as dedupelib  # noqa: E402
 from scripts.lib import quote_verify as qvlib  # noqa: E402
 from scripts.lib import phishing as phlib  # noqa: E402
+from scripts.lib import prompt_version as pvlib  # noqa: E402
 from scripts.lib.gmail_client import GmailClient, GmailClientError  # noqa: E402
 
 
 RULES_PATH = os.path.join(ROOT, "config", "rules.json")
 DRAFTS_LOG = os.path.join(ROOT, "logs", "drafts.jsonl")
+PROMPTS_DIR = os.path.join(ROOT, "prompts")
+
+
+def _read_prompt_versions() -> dict[str, str | None]:
+    """Return {prompt_name: prompt_version} for triage + draft prompts."""
+    versions = pvlib.read_all(PROMPTS_DIR)
+    return {
+        "triage": versions.get("triage", {}).get("prompt_version"),
+        "draft": versions.get("draft", {}).get("prompt_version"),
+    }
 
 
 def load_rules(path: str = RULES_PATH) -> dict:
@@ -84,6 +95,7 @@ def triage_one(
         body=thread.get("body", "") or thread.get("snippet", ""),
     )
 
+    prompt_versions = _read_prompt_versions()
     entry: dict = {
         "schema_version": schemalib.CURRENT_SCHEMA_VERSION,
         "timestamp_iso": _now_iso(),
@@ -95,6 +107,7 @@ def triage_one(
         },
         "category_id": category_id,
         "rules_version": rules_version,
+        "prompt_versions": prompt_versions,
         "draft_preview": "",
         "confidence": max(1, min(5, confidence)),
         "status": "skipped",

@@ -55,6 +55,15 @@ _REQUIRED: dict[str, tuple[str, ...]] = {
         "action",
         "min_confidence",
     ),
+    "unsub": (
+        "schema_version",
+        "timestamp_iso",
+        "thread_id",
+        "sender",
+        "subject",
+        "action",
+        "status",
+    ),
 }
 
 _ALLOWED_STATUS = {"pending_review", "flagged_for_human", "skipped", "superseded"}
@@ -106,6 +115,12 @@ def validate(entry: dict[str, Any], entry_type: str) -> None:
             raise SchemaError("audit.findings must be a dict")
         if not isinstance(entry["suggested_prompt_changes"], list):
             raise SchemaError("audit.suggested_prompt_changes must be a list")
+
+    elif entry_type == "unsub":
+        allowed_actions = {"none", "draft_queued", "manual_click",
+                           "manual_mailto", "dry_run"}
+        if entry["action"] not in allowed_actions:
+            raise SchemaError(f"unsub.action must be one of {allowed_actions}")
 
     elif entry_type == "rule":
         if entry["action"] not in _ALLOWED_ACTION:

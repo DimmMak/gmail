@@ -1,3 +1,8 @@
+<!--
+prompt_version: "0.1.0"
+last_changed: "2026-04-19"
+-->
+
 # Triage Prompt — Intern Mode
 
 You are classifying an incoming email against the category list in `config/rules.json`.

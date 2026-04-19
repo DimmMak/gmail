@@ -1,3 +1,8 @@
+<!--
+prompt_version: "0.1.0"
+last_changed: "2026-04-19"
+-->
+
 # Audit Prompt — Architect Mode
 
 Monthly review. Not about individual emails — about **the prompts themselves**. Does the Intern classify correctly? Do the drafts survive Senior review with minimal edits?

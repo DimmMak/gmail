@@ -4,6 +4,40 @@ All notable changes to this skill are documented here. Format loosely follows Ke
 
 ---
 
+## [0.1.7] — 2026-04-19
+
+### Added
+- `scripts/lib/prompt_version.py` — parser for `<!-- prompt_version: ... -->`
+  comment headers in `prompts/*.md`. Stdlib only, pure functions.
+- `prompt_versions` field on every draft log entry, populated from the
+  current triage + draft prompt headers. Attributes drafts to specific
+  prompt revisions so the monthly architect audit can say "edit rate
+  rose starting at draft.md v0.3" instead of just "edit rate rose."
+- Version headers added to `prompts/triage.md`, `prompts/draft.md`,
+  `prompts/audit.md` — all at `0.1.0`, last_changed `2026-04-19`.
+- `tests/test_unsub_and_versioning.py` — covers both new modules,
+  including a CI-level test that fails if any future prompt is added
+  without a version header.
+
+---
+
+## [0.1.6] — 2026-04-19
+
+### Added
+- `scripts/unsub.py` — batch unsubscribe helper. Parses RFC 2369
+  `List-Unsubscribe` headers, then either (a) queues mailto-based
+  unsubscribe drafts via `create_draft` (still human-reviewed before
+  send), or (b) prints https: one-click URLs for batch-opening.
+- `unsub` entry type added to `scripts/lib/schema.py` with 5 allowed
+  actions (none / draft_queued / manual_click / manual_mailto / dry_run).
+- `logs/unsubs.jsonl` — new append-only log for unsubscribe candidates.
+
+### Safety
+- Zero new capabilities. Uses only existing MCP surface (search_threads,
+  get_thread, create_draft). Invariant I5 (no send) still structural.
+
+---
+
 ## [0.1.5] — 2026-04-19
 
 ### Added
