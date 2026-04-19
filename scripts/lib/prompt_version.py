@@ -23,8 +23,8 @@ import re
 
 _HEADER_RE = re.compile(
     r"<!--\s*\n"
-    r"\s*prompt_version:\s*\"?([^\"\s\n]+)\"?\s*\n"
-    r"(?:\s*last_changed:\s*\"?([^\"\s\n]+)\"?\s*\n)?"
+    r"\s*prompt_version:\s*\"?([^\"\n]+?)\"?\s*\n"
+    r"(?:\s*last_changed:\s*\"?([^\"\n]+?)\"?\s*\n)?"
     r"\s*-->",
     re.MULTILINE,
 )
