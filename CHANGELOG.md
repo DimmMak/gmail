@@ -4,6 +4,18 @@ All notable changes to this skill are documented here. Format loosely follows Ke
 
 ---
 
+## v0.1.11 — 2026-04-21
+
+**Fixes all 4 major findings from the 2026-04-20 phase-2 Haiku audit.**
+
+- 🔴 **Fixed self-audit contradiction (dim 14):** `composable_with` listed `accuracy-tracker` and `royal-rumble` but the description's NOT-for list explicitly excluded both. Removed them from `composable_with` (set to empty list with inline comment). Gmail is a leaf skill — email triage doesn't compose with fund/investment skills because the data shapes don't match.
+- 🔴 **Fixed contract-drift x2 (dim 13):** same root cause as above. With `composable_with: []`, there are no longer false promises about composability. gmail's JSONL email outputs never had to match accuracy-tracker's prediction JSON or royal-rumble's desk outputs.
+- 🔴 **Fixed trigger-precision (dim 10):** added explicit ACTIVATION + DECLINE RULES section near the top of SKILL.md with a decline template and redirect table. Previously the skill would attempt non-gmail tasks (linkedin-outreach, stock analysis) instead of declining.
+
+**Expected audit result:** A (93) → A+ (95+), 0 structural findings.
+
+---
+
 ## [0.1.10] — 2026-04-19
 
 ### Added — closing pro-grade stress-test gap

@@ -1,7 +1,7 @@
 ---
 name: gmail
 domain: general
-version: 0.1.10
+version: 0.1.11
 description: >
   Email triage with Intern/Senior/Architect review pattern. Intern (Claude) drafts replies via Gmail MCP; Senior (Danny) reviews and sends; Architect audits monthly. Structural no-send guarantee — the MCP surface exposes no send tool. NOT for: linkedin-outreach (LinkedIn DMs only), accuracy-tracker (prediction grading, not email), royal-rumble (stock verdicts, not inbox).
 capabilities:
@@ -24,9 +24,7 @@ unix_contract:
   schema_version: "0.1"
   stdin_support: true
   stdout_format: "JSONL matching SCHEMA.md"
-  composable_with:
-    - accuracy-tracker
-    - royal-rumble
+  composable_with: []  # intentionally empty — gmail is a leaf skill; email triage does not compose with fund/investment skills (accuracy-tracker and royal-rumble consume different data shapes)
 ---
 
 # .gmail — Email Triage Skill
@@ -38,6 +36,34 @@ unix_contract:
 - **Architect (monthly):** samples 10% of drafts, grades accuracy, proposes prompt tweaks.
 
 The MCP surface has no `send` tool. That is a **structural guarantee** (invariant I5), not a policy. Even a buggy agent cannot exfiltrate email.
+
+---
+
+## 🚦 ACTIVATION + DECLINE RULES (v0.1.11 — fixes trigger-precision bug)
+
+**ACTIVATE only when the user's request is about Gmail inbox work:**
+- Triaging unread email
+- Drafting replies
+- Labeling / organizing threads
+- Auditing past drafts for accuracy
+
+**DECLINE immediately and redirect if request is about:**
+
+| 🟣 Request pattern | 🟣 Correct redirect |
+|---|---|
+| "Help me with linkedin-outreach" / LinkedIn DMs / cold outreach | Decline. Not an inbox skill. "linkedin-outreach is out of scope; this skill is Gmail-only." |
+| "Grade my predictions" / "score my rumbles" / accuracy tracking | Redirect to `accuracy-tracker` |
+| "Analyze this stock" / "rumble TICKER" / investment verdicts | Redirect to `royal-rumble` or `.chief` |
+| "Write a memo" / Howard Marks-style prose | Redirect to `.journalist` |
+| Any non-Gmail communication platform | Decline. Explicitly say this skill is Gmail-specific. |
+
+**Decline template:**
+```
+❌ That's not a Gmail-inbox task. This skill handles email triage only.
+   → <redirect to correct skill or "this is out of fleet scope">
+```
+
+**Never** attempt to handle non-email work even if the user insists. Structural scope = invariant I5 equivalent for activation.
 
 ---
 
